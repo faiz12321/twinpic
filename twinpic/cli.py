@@ -72,6 +72,9 @@ def _cmd_aside(args) -> int:
     except core.ManifestExistsError as e:
         print(str(e), file=sys.stderr)
         return 1
+    except core.ManifestError as e:
+        print(str(e), file=sys.stderr)
+        return 1
     except ValueError as e:
         print(str(e), file=sys.stderr)
         return 2

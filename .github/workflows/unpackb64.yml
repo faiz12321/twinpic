@@ -1,0 +1,22 @@
+name: unpack
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack bundle
+        run: |
+          base64 -d tree2.b64 > tree.tar.gz
+          tar xzf tree.tar.gz
+          rm -f tree2.b64 tree.tar.gz
+      - name: Commit
+        run: |
+          git config user.name "faiz12321"
+          git config user.email "faiz12321@users.noreply.github.com"
+          git add -A
+          git commit -m "TwinPic: core, CLI, local window, tests, docs"
+          git push

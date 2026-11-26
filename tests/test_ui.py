@@ -118,9 +118,6 @@ class UiTests(unittest.TestCase):
         self.assertEqual(cm.exception.code, 403)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
-
 
 class UiSecurityRegressionTests(unittest.TestCase):
     """Regression tests from the independent reviews."""
@@ -249,3 +246,29 @@ class UiSecurityRegressionTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as cm:
             post(self.url("/api/undo"), {"holding": holding})
         self.assertEqual(cm.exception.code, 404)
+
+
+class PageContentTests(unittest.TestCase):
+    """Static checks on the served page (ROUND 3 L2 and L4)."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(ui._HTML_PATH, encoding="utf-8") as f:
+            cls.html = f.read()
+
+    def test_similar_groups_get_their_own_warning(self):
+        # L2: a look-alike-only group must carry the warning on the
+        # group itself, not only in the banner at the top.
+        self.assertIn('if (g.kind === "similar")', self.html)
+        self.assertIn("These only look the same.", self.html)
+
+    def test_keeper_onclick_escapes_ampersand(self):
+        # L4: a path with "&" must not break the keeper button's
+        # onclick attribute: escape "&" before the quotes.
+        self.assertIn(
+            "JSON.stringify(m.path).replace(/&/g, '&amp;')"
+            ".replace(/\"/g, '&quot;')", self.html)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

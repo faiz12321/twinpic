@@ -161,7 +161,14 @@ function renderResults(folder, res) {
   res.groups.forEach((g, gi) => {
     out.push('<div class="card group"><h2>Group ' + (gi+1) +
       ' <span class="kind">' + (g.kind === "exact" ? "same bytes" : "look the same") +
-      '</span></h2><div class="members">');
+      '</span></h2>');
+    if (g.kind === "similar") {
+      out.push('<div class="warn"><strong>These only look the same.</strong> ' +
+        'Pictures that only look alike - graphics, emoji, plain sky or sea ' +
+        'shots - can pair up by mistake. Look at every picture in this ' +
+        'group before moving anything.</div>');
+    }
+    out.push('<div class="members">');
     g.members.forEach(m => {
       const isKeeper = m.path === g.keeper;
       out.push('<div class="member"><img loading="lazy" src="' + thumbUrl(m.path) + '" alt="">' +
@@ -169,7 +176,7 @@ function renderResults(folder, res) {
         '<div class="note">' + fmtSize(m.size) + '</div>' +
         (isKeeper ? '<span class="badge">KEEP</span>'
                   : '<button class="small" onclick="setKeeper(' + gi + ',' +
-                    JSON.stringify(m.path).replace(/"/g, '&quot;') + ')">keep this one instead</button>') +
+                    JSON.stringify(m.path).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + ')">keep this one instead</button>') +
         '</div>');
     });
     out.push('</div></div>');

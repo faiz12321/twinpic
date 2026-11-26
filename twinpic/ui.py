@@ -148,6 +148,9 @@ class _Handler(BaseHTTPRequestHandler):
             except core.ManifestExistsError as e:
                 self._json(400, {"error": str(e)})
                 return
+            except core.ManifestError as e:
+                self._json(400, {"error": str(e)})
+                return
             except ValueError as e:
                 self._json(400, {"error": str(e)})
                 return

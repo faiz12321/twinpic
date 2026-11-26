@@ -437,7 +437,12 @@ def move_aside(result: ScanResult, holding_folder: str,
         raise ManifestExistsError(
             f"{holding_folder} already holds a TwinPic holding folder. "
             "Undo it first, or choose another holding folder.")
-    os.makedirs(holding_folder, exist_ok=True)
+    try:
+        os.makedirs(holding_folder, exist_ok=True)
+    except OSError as e:
+        raise ManifestError(
+            f"TwinPic could not use the holding folder {holding_folder} "
+            f"({e.strerror or e}). Choose another holding folder.") from e
 
     # Keeper choices: one per group, and it must be in that group.
     chosen: dict[int, str] = {}
@@ -466,7 +471,8 @@ def move_aside(result: ScanResult, holding_folder: str,
                 raise ValueError(f"not in the scanned preview: {p}")
 
     moved, skipped, unverified = [], [], []
-    _start_manifest(holding_folder)
+    recorded: list = []   # move lines written to the manifest this run
+    started = False       # the manifest is created at the first real move
     n = 0
     for g in result.groups:
         keep = _protected_keepers(result, g)
@@ -484,12 +490,49 @@ def move_aside(result: ScanResult, holding_folder: str,
                 continue
             dest = _unique_dest(holding_folder, os.path.basename(path), n)
             n += 1
+            if not started:
+                try:
+                    _start_manifest(holding_folder)
+                except OSError as e:
+                    raise ManifestError(
+                        "TwinPic could not start its move record in "
+                        f"{holding_folder} ({e.strerror or e}). Nothing "
+                        "was moved. Choose another holding folder.") from e
+                started = True
+            entry = {"from": os.path.abspath(path),
+                     "to": os.path.abspath(dest)}
+            # The move record is written BEFORE the file moves, so an
+            # interrupted run (pulled cable, full disk) still knows where
+            # every moved file went. A recorded move that never landed is
+            # harmless: Undo finds the original still in place and counts
+            # it done.
+            try:
+                _append_move(holding_folder, path, dest)
+            except OSError as e:
+                # A move that cannot be recorded must not happen. Drop
+                # any half-written line, then stop with plain words;
+                # files already moved are recorded and Undo can put
+                # them back.
+                try:
+                    _rewrite_manifest(holding_folder, recorded)
+                except OSError:
+                    pass
+                raise ManifestError(
+                    "TwinPic could not write its move record in "
+                    f"{holding_folder} ({e.strerror or e}). Files already "
+                    "moved are recorded - put them back with Undo.") from e
             try:
                 _move_file(path, dest)
             except OSError:
+                # The move never landed: drop its line so the record
+                # stays exact, and report the file as skipped.
+                try:
+                    _rewrite_manifest(holding_folder, recorded)
+                except OSError:
+                    pass
                 skipped.append(path)
                 continue
-            _append_move(holding_folder, path, dest)
+            recorded.append(entry)
             moved.append(path)
     return {"moved": moved, "skipped_changed_or_missing": skipped,
             "skipped_unverified": unverified, "manifest": manifest_path}

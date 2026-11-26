@@ -5,6 +5,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -226,28 +227,93 @@ class SafetyRegressionTests(unittest.TestCase):
         make_photo(self.p("a.png"), seed=5)
         shutil.copy(self.p("a.png"), self.p("b.png"))
         res = core.scan([self.tmp])
+        real_replace = os.replace
+
+        def exdev_replace(src, dst):
+            if os.path.splitext(str(dst))[1].lower() == ".png":
+                raise OSError(18, "Invalid cross-device link")
+            return real_replace(src, dst)
+
+        with mock.patch("os.replace", exdev_replace):
+            out = core.move_aside(res, self.p("holding"))
+        self.assertEqual(len(out["moved"]), 1)
+        back = core.undo(self.p("holding"))
+        self.assertEqual(back["problems"], [])
+        self.assertTrue(os.path.exists(self.p("b.png")))
+
+    def test_crash_after_record_before_move_still_undoes_cleanly(self):
+        # ROUND 3 M1: the move record is written BEFORE the file moves.
+        # A crash right after the record (the file never moved) must
+        # leave Undo able to finish cleanly, so the README promise "an
+        # interrupted run still knows where every moved file is" holds.
+        for name in ("a.png", "b.png"):
+            make_photo(self.p(name), seed=5)
+        res = core.scan([self.tmp])
+        holding = self.p("holding")
         import twinpic.core as c
         real_move = c._move_file
 
-        def move_with_exdev(src, dst):
-            try:
-                raise OSError(18, "Invalid cross-device link")
-            except OSError:
-                pass
-            shutil.copy2(src, dst)
-            if c.sha256_of(dst) != c.sha256_of(src):
-                os.remove(dst)
-                raise OSError("copy did not verify")
-            os.remove(src)
+        def crash(src, dst):
+            raise RuntimeError("power cut")  # not OSError: the run dies
 
-        c._move_file = move_with_exdev
+        c._move_file = crash
         try:
-            out = c.move_aside(res, self.p("holding"))
+            with self.assertRaises(RuntimeError):
+                c.move_aside(res, holding)
         finally:
             c._move_file = real_move
-        self.assertEqual(len(out["moved"]), 1)
-        back = c.undo(self.p("holding"))
+        # the crash left the record of the intended move behind
+        with open(os.path.join(holding, core.MANIFEST_NAME)) as f:
+            lines = f.read().splitlines()
+        self.assertEqual(len(lines), 2)  # header + the recorded move
+        back = core.undo(holding)
         self.assertEqual(back["problems"], [])
+        # nothing really moved: both originals are still in place
+        self.assertTrue(os.path.exists(self.p("a.png")))
+        self.assertTrue(os.path.exists(self.p("b.png")))
+        # the manifest is gone once Undo has nothing left to do
+        self.assertFalse(os.path.exists(
+            os.path.join(holding, core.MANIFEST_NAME)))
+
+    def test_holding_path_that_is_a_file_gives_plain_words(self):
+        # ROUND 3 M2: a holding path that already exists as a plain
+        # file must produce a clean message, not a raw traceback.
+        for name in ("a.png", "b.png"):
+            make_photo(self.p(name), seed=5)
+        res = core.scan([self.tmp])
+        blocker = self.p("not-a-folder")
+        with open(blocker, "w") as f:
+            f.write("x")
+        with self.assertRaises(core.ManifestError) as cm:
+            core.move_aside(res, blocker)
+        self.assertIn("Choose another holding folder", str(cm.exception))
+        self.assertTrue(os.path.exists(self.p("a.png")))
+        self.assertTrue(os.path.exists(self.p("b.png")))
+
+    def test_unwritable_holding_path_gives_plain_words(self):
+        # ROUND 3 M2: a holding folder that cannot be created (its
+        # parent is a plain file) must produce a clean message too.
+        for name in ("a.png", "b.png"):
+            make_photo(self.p(name), seed=5)
+        res = core.scan([self.tmp])
+        blocker = self.p("not-a-folder2")
+        with open(blocker, "w") as f:
+            f.write("x")
+        with self.assertRaises(core.ManifestError) as cm:
+            core.move_aside(res, os.path.join(blocker, "holding"))
+        self.assertIn("Choose another holding folder", str(cm.exception))
+
+    def test_no_manifest_when_nothing_moved(self):
+        # ROUND 3 L1: when every file is skipped, no manifest is left
+        # behind in the holding folder.
+        for name in ("a.png", "b.png"):
+            make_photo(self.p(name), seed=5)
+        res = core.scan([self.tmp])
+        os.remove(self.p("b.png"))  # changed since the scan: skipped
+        out = core.move_aside(res, self.p("holding"))
+        self.assertEqual(out["moved"], [])
+        self.assertFalse(os.path.exists(
+            os.path.join(self.p("holding"), core.MANIFEST_NAME)))
 
     def test_anchor_clustering_does_not_chain(self):
         # HIGH 1: A~B and B~C must NOT merge C into A's group when A!~C.

@@ -1,0 +1,68 @@
+name: tests
+on: [push, workflow_dispatch]
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      TWINPIC_TEST_TMP: ${{ github.workspace }}/tmp-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Prepare scratch folder
+        shell: python
+        run: |
+          import os; os.makedirs(os.environ["TWINPIC_TEST_TMP"], exist_ok=True)
+      - name: Unit, safety and window tests
+        shell: bash
+        run: |
+          python -m unittest discover -s tests -v > test-out.txt 2>&1
+          rc=$?
+          { echo "### Tests on ${{ matrix.os }}"; echo '```'; grep -E "^Ran |^OK|^FAILED" test-out.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          tail -60 test-out.txt
+          exit $rc
+      - name: Smoke test from source
+        run: python tests/smoke_exe.py "python run.py"
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    env:
+      TWINPIC_TEST_TMP: ${{ github.workspace }}/tmp-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build TwinPic.exe
+        run: |
+          python -m pip install pyinstaller -r requirements.txt
+          pyinstaller --onefile --name TwinPic --exclude-module tkinter --add-data "twinpic/ui.html;twinpic" run.py
+      - name: List what is inside the exe
+        run: |
+          python -m PyInstaller.utils.cliutils.archive_viewer -l -r dist/TwinPic.exe
+      - name: Smoke test the exe
+        shell: python
+        run: |
+          import os, subprocess, sys
+          os.makedirs(os.environ["TWINPIC_TEST_TMP"], exist_ok=True)
+          sys.exit(subprocess.call([sys.executable, "tests/smoke_exe.py", os.path.abspath(r"dist\TwinPic.exe")]))
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path pkg | Out-Null
+          Copy-Item dist\TwinPic.exe pkg\
+          Copy-Item README.md, LICENSE, THIRD-PARTY.md pkg\
+          Copy-Item licenses\*.txt pkg\
+          (Get-FileHash dist\TwinPic.exe -Algorithm SHA256).Hash | Out-File pkg\TwinPic.exe.sha256.txt -Encoding ascii
+          Compress-Archive -Path pkg\* -DestinationPath TwinPic-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TwinPic-windows
+          path: TwinPic-windows.zip

@@ -9,52 +9,73 @@
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 24px 16px 64px;
-    background: #14100d; color: #f3ece4;
-    font-family: Georgia, 'Segoe UI', serif; font-size: 19px; line-height: 1.5;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(34, 211, 238, .12), transparent 60%),
+      radial-gradient(700px 420px at -10% 30%, rgba(139, 92, 246, .10), transparent 60%),
+      #05070f;
+    color: #e6f1ff;
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 19px; line-height: 1.5;
   }
   main { max-width: 680px; margin: 0 auto; }
-  h1 { font-size: 34px; margin: 0 0 4px; }
-  .tag { color: #c9a878; margin: 0 0 24px; }
-  .card {
-    background: #211b16; border: 1px solid #3a2f26; border-radius: 14px;
-    padding: 16px; margin: 0 0 16px;
+  h1 {
+    font-size: 36px; margin: 0 0 4px; letter-spacing: .12em;
+    text-transform: uppercase; font-weight: 700;
+    background: linear-gradient(90deg, #67e8f9, #8b5cf6);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  label { display: block; font-size: 16px; color: #b9a892; margin: 0 0 6px; }
+  .tag { color: #67e8f9; margin: 0 0 24px; letter-spacing: .02em; }
+  .card {
+    background: rgba(13, 20, 32, .82); border: 1px solid #1e3a4a; border-radius: 16px;
+    padding: 16px; margin: 0 0 16px;
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, .04), 0 12px 32px rgba(0, 0, 0, .45);
+  }
+  label { display: block; font-size: 16px; color: #8fa3bf; margin: 0 0 6px; }
   input[type=text] {
     width: 100%; font-size: 18px; padding: 10px 12px; border-radius: 10px;
-    border: 1px solid #4a3c2e; background: #14100d; color: #f3ece4;
+    border: 1px solid #1e3a4a; background: #0a0f1a; color: #e6f1ff;
+  }
+  input[type=text]:focus {
+    outline: none; border-color: #22d3ee;
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, .25);
   }
   button {
     font-family: inherit; font-size: 18px; cursor: pointer;
-    border-radius: 10px; border: 1px solid #6b5638;
-    background: #3a2c1c; color: #ffd9a0; padding: 10px 18px; margin-top: 12px;
+    border-radius: 10px; border: 1px solid #22d3ee;
+    background: transparent; color: #67e8f9; padding: 10px 18px; margin-top: 12px;
+    transition: box-shadow .15s ease, background .15s ease;
   }
-  button.primary { background: #c9a878; color: #1d1610; border-color: #c9a878; font-weight: bold; }
+  button:hover:not(:disabled) { box-shadow: 0 0 16px rgba(34, 211, 238, .35); }
+  button.primary {
+    background: linear-gradient(90deg, #22d3ee, #38bdf8); color: #04121a;
+    border-color: transparent; font-weight: 700; letter-spacing: .02em;
+    box-shadow: 0 0 18px rgba(34, 211, 238, .35);
+  }
   button.small { font-size: 14px; padding: 4px 10px; margin: 0; }
   button:disabled { opacity: .5; cursor: default; }
   .status { margin: 16px 0; white-space: pre-wrap; }
-  .status.err { color: #ff9d8a; }
+  .status.err { color: #fda4af; }
   .warn {
-    border-left: 4px solid #c9a878; padding: 8px 12px; margin: 0 0 16px;
-    background: #241d15; border-radius: 8px; font-size: 16px;
+    border-left: 4px solid #22d3ee; padding: 8px 12px; margin: 0 0 16px;
+    background: rgba(34, 211, 238, .08); border-radius: 8px; font-size: 16px;
   }
-  .group h2 { font-size: 20px; margin: 0 0 10px; }
-  .kind { color: #c9a878; font-size: 15px; }
+  .group h2 { font-size: 20px; margin: 0 0 10px; letter-spacing: .04em; }
+  .kind { color: #67e8f9; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; }
   .members { display: flex; flex-wrap: wrap; gap: 12px; }
   .member { width: 160px; }
   .member img {
     width: 160px; height: 160px; object-fit: cover; border-radius: 10px;
-    background: #0d0a08; display: block;
+    background: #05070f; display: block; border: 1px solid #1e3a4a;
   }
-  .member .path { font-size: 13px; word-break: break-all; color: #b9a892; margin-top: 4px; }
+  .member .path { font-size: 13px; word-break: break-all; color: #8fa3bf; margin-top: 4px; }
   .badge {
-    display: inline-block; font-size: 13px; font-weight: bold;
-    background: #c9a878; color: #1d1610; border-radius: 6px; padding: 2px 8px;
-    margin-top: 4px;
+    display: inline-block; font-size: 13px; font-weight: bold; letter-spacing: .1em;
+    background: linear-gradient(90deg, #22d3ee, #38bdf8); color: #04121a;
+    border-radius: 6px; padding: 2px 8px; margin-top: 4px;
   }
-  .note { font-size: 15px; color: #b9a892; }
+  .note { font-size: 15px; color: #8fa3bf; }
   .hidden { display: none; }
-  footer { margin-top: 40px; font-size: 14px; color: #8a7a64; }
+  footer { margin-top: 40px; font-size: 14px; color: #5c7089; }
 </style>
 </head>
 <body>
